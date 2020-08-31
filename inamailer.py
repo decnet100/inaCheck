@@ -8,7 +8,7 @@ import os
 from envelopes import Envelope
 from imap_tools import MailBox
 
-from inadefChecker import image_prep, inafiles
+from inadefChecker import inaimage, inafiles
 from inadefChecker.inaconf import inaconf
 
 caution = []
@@ -54,7 +54,7 @@ def getinadefmail(number=1, maindir=inaconf.maindir):
                     fp.write(att.payload)
                     fp.close()
                     newmessage.append(filePath)
-                battlevels.append(image_prep.battcheck(filePath))
+                battlevels.append(inaimage.battcheck(filePath))
             if len(battlevels) > 0:
                 print('Cam %d  Batt level percent:' % (number), round(100 * battlevels[len(battlevels) - 1]))
         if battlevels[len(battlevels) - 1] < 0.2:

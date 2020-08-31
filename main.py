@@ -21,7 +21,7 @@ import numpy as np
 import pytz
 from suntime import Sun
 
-from inadefChecker import image_prep, inafiles, inamailer
+from inadefChecker import inaimage, inafiles, inamailer
 # preconf()
 # for set_cfg set in imageset:
 #     set_prepare_set(set)
@@ -181,18 +181,18 @@ def blobwatch(cam=0, new=[]):
 
                     dilimg = os.path.join(camdir, os.path.splitext(image)[0] + '_dil.jpg')
                     if not os.path.exists(dilimg):
-                        dilimg = image_prep.dilate(os.path.join(camdir, image))
+                        dilimg = inaimage.dilate(os.path.join(camdir, image))
 
                     if (local_imgdate > sr['sunrise']) and (local_imgdate < sr['sunset']):
                         inaconf.logprint(
                             'Timecheck: assuming daytime image - skipping blob analysis, doing edge comparison on entire image')
-                        col = image_prep.has_color_info(orig, daycrop_win)
+                        col = inaimage.has_color_info(orig, daycrop_win)
                         valid = True
                         agreement = True
                         comparisons = get_comparisons(orig)
                         results = []
                         for comp in comparisons:
-                            values = image_prep.daycheck(orig, os.path.join(os.path.dirname(orig), comp[1]['file']))
+                            values = inaimage.daycheck(orig, os.path.join(os.path.dirname(orig), comp[1]['file']))
                             print(comp[1], values)
                             results.append(values)
                         print('fertisch')
@@ -201,19 +201,19 @@ def blobwatch(cam=0, new=[]):
                         goodqual = (np.median(np.array(results)[:, 1]) > 0.5)
                     else:
                         inaconf.logprint('Timecheck: assuming nighttime image')
-                        if image_prep.is_lowcontrast(dilimg):  # Test of dilated image!
+                        if inaimage.is_lowcontrast(dilimg):  # Test of dilated image!
 
-                            goodqual = image_prep.is_highquality(orig, night=True)
+                            goodqual = inaimage.is_highquality(orig, night=True)
                             print('Image %s is low-contrast image. Performing Blob analysis' % (image))
-                            missing_dil = image_prep.blobtest(dilimg, current)
-                            cannyimg = image_prep.canny(orig)
-                            missing_can = image_prep.blobtest(cannyimg, current)
+                            missing_dil = inaimage.blobtest(dilimg, current)
+                            cannyimg = inaimage.canny(orig)
+                            missing_can = inaimage.blobtest(cannyimg, current)
                             if len(missing_dil) == 0 or len(missing_can) == 0:
                                 valid = True
                             if min(len(missing_dil), len(missing_can)) != max(len(missing_dil), len(missing_can)):
                                 agreement = False
                             missing_ref = missing_dil + missing_can
-                            blobs.append(image_prep.blobdet(dilimg))
+                            blobs.append(inaimage.blobdet(dilimg))
                             #
                             # for reflector in reflectors:
                             #     reflector_there = False
@@ -237,20 +237,20 @@ def blobwatch(cam=0, new=[]):
                             print('CLASSIFICATION: True positive.')
                             # do pretty much nothing. World is in order.
                         if valid and not agreement:
-                            plotimg = image_prep.blobdraw(dilimg, cam, missing_ref)
+                            plotimg = inaimage.blobdraw(dilimg, cam, missing_ref)
                             inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
                             print('CLASSIFICATION: potentially false positive.')
                             # treat it as spurious. Send Notification
                         if not valid and goodqual:
                             # treat as alarm!
                             print('CLASSIFICATION: True negative.')
-                            plotimg = image_prep.blobdraw(dilimg, cam, missing_ref)
+                            plotimg = inaimage.blobdraw(dilimg, cam, missing_ref)
 
                             inamailer.send_alert(cam, maindir, [orig, plotimg, cannyimg])
                             # missing_ref = []
                         if not valid and not goodqual:
                             print('CLASSIFICATION: potentially false negative.')
-                            cannyimg = image_prep.canny(orig)
+                            cannyimg = inaimage.canny(orig)
                             inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
                     else:
                         print('Image already registered, no action required.')
