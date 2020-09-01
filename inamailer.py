@@ -97,8 +97,7 @@ def send_inadefmail(camnr, text=u'Something is happening!!', rec_name='Inadef ob
     # Send the envelope using an ad-hoc connection...
 
 
-# envelope.send('bsmtp.a1.net', login=data['login'],
-#               password=data['pwd'], tls=True)
+    envelope.send(data['host'], login=data['login'], password=data['pwd'], tls=True)
 
 def send_alert(camnr, maindir=inaconf.maindir, attachments=[]):
     print('sending alert to receipients: ', get_cam_receipients(camnr, maindir))

@@ -64,7 +64,7 @@ def dirlocationchange():
 
 
 def checkstart(camnumber=0, maindir=inaconf.maindir):
-    startfile = os.path.join(maindir, inafiles.get_camdir(camnumber), 'startdate.txt')
+    startfile = os.path.join(maindir, get_camdir(camnumber), 'startdate.txt')
     if os.path.isfile(startfile):
         with open(startfile) as f:
             datestr = f.readline()
@@ -87,7 +87,7 @@ def read_timedate_from_filename(file):
 def read_reflectorpos(cam=0):
     defaultreflectors = [[1, 113, 297, 20], [5, 242, 448, 20]]
     maindir = inaconf.maindir
-    reffile = os.path.join(maindir, inafiles.get_camdir(cam), 'reflector_pos.txt')
+    reffile = os.path.join(maindir, get_camdir(cam), 'reflector_pos.txt')
     ref = []
     if os.path.isfile(reffile):
         with open(reffile) as f:

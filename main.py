@@ -22,6 +22,7 @@ import pytz
 from suntime import Sun
 
 from inadefChecker import inaimage, inafiles, inamailer
+#import inaimage, inafiles, inamailer
 # preconf()
 # for set_cfg set in imageset:
 #     set_prepare_set(set)
