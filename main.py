@@ -21,7 +21,8 @@ import numpy as np
 import pytz
 from suntime import Sun
 
-from inadefChecker import inaimage, inafiles, inamailer
+from inadefChecker import inaimage, inafiles, inazentra
+from inadefChecker.inamailer import inamailer
 #import inaimage, inafiles, inamailer
 # preconf()
 # for set_cfg set in imageset:
@@ -60,6 +61,7 @@ def preconfig():
     inaconf.set_datefilefmt(datefilefmt)
     inaconf.set_dateexiffmt(dateexiffmt)
     inaconf.set_battcrop([335, 465, 367, 478])
+    mailer = inamailer()
     # locations = inaconf.get_camlocations()
     for i in activecams[0]:
         inafiles.dircreate('cam_%d' % i)
@@ -282,12 +284,18 @@ daycrop_win = grow_reflector(reflector_center, 100)
 # reflectorcrop = [100,0,1200,600]
 # Mail command:
 new = fetch()  # fetches mail, gets an array of all the new files saved to disk
+
 print('%d new images found:' % len(new))
 print(new)
 
 blobs_cam = []
 reflectors_cam = []
+locations = inafiles.getlocations()
+for loc in locations.iterrows():
+    inazentra.getmeteodata(loc[1]['location'])
 # testdir = r'c:\temp\wildkamera'
 for i in activecams[0]:
+
     reflectors_cam.append([i, inafiles.read_reflectorpos(i)])
     blobs_cam.append(blobwatch(i, new))
+    inamailer.send_mails(inamailer.alerts, inamailer.cautions, inamailer.batts)

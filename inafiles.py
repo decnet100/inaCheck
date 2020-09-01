@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+from pandas import read_csv
+
 
 from inadefChecker.inaconf import inaconf
 
@@ -10,25 +12,62 @@ def badcharremove(value):
         value = value.replace(c, '_')
     return value;
 
-
-def getloc(locations, number):
+def getclearloc(locations, camnumber): #delivers location data in clear text as it appears in location file
     val = ''
     locnr = ''
     for loc in locations:
-        if loc[0] == number:
-            val = '_' + badcharremove(loc[2].strip())
+        if loc[0] == camnumber:
+            val = loc[2].strip()
             locnr = str(loc[1])
             break
     return val, locnr
 
+def getloc(locations, camnumber): #reformats location data to OS-Path compatible string
+    val, locnr = getclearloc(locations,camnumber)
+    val = '_' + badcharremove(val.strip())
+    return val, locnr
 
-def getlocationdata(locations, number):
+
+def getlocationdata(locations, camnumber):
     locdata = None
     for loc in locations:
-        if loc[0] == number:
+        if loc[0] == camnumber:
             locdata = loc
             break
     return locdata
+
+def getlocations():
+    locationfile = os.path.join(inaconf.maindir, 'locations.txt')
+
+    locations = readDataframe(locationfile)
+    return locations
+
+
+
+def getZentraLogin():
+    maindir = inaconf.maindir
+    loginfile = os.path.join(maindir, 'zentra.txt')
+    #login = read_csv(loginfile, delimiter=';')
+    login = readDataframe(loginfile)
+    return login
+import pandas as pd
+def readDataframe(file, delimiter=';'):
+    data = pd.DataFrame()
+    if os.path.isfile(file):
+        data = read_csv(file, delimiter)
+    return data
+def getmeteofromlocation(number):
+    meteo = []
+    meteofile = os.path.join(inaconf.maindir,'meteo_locations.txt')
+    data = readDataframe(meteofile)
+    for station in data.iterrows():
+        if int(station[1]['location'])==number:
+            meteo.append(station[1]['device_sn'])
+    return meteo
+
+
+
+
 
 
 def dircreate(dirName, maindir=inaconf.maindir):
@@ -82,6 +121,16 @@ def read_timedate_from_filename(file):
     date = filedate.date()
 
     return time, date
+
+def getmaildata(maindir=inaconf.maindir):
+    filepath = os.path.join(maindir, 'maildata.txt')
+    if os.path.isfile(filepath):
+        with open(filepath, 'r') as f:
+            rec = f.readline()
+    else:
+        raise AssertionError
+    vals = rec.split(',')
+    return {'host': vals[0].strip(), 'mail': vals[1].strip(), 'pwd': vals[2].strip()}
 
 
 def read_reflectorpos(cam=0):
