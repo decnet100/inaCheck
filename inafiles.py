@@ -2,8 +2,8 @@ import os
 from datetime import datetime, timedelta
 from pandas import read_csv
 import pandas as pd
-from inadefChecker import inaimage, inamailer
-from inadefChecker.inaconf import inaconf
+import inaimage, inamailer
+from inaconf import inaconf
 
 
 def badcharremove(value):

@@ -2,8 +2,8 @@ from zentra.api import *
 import os
 from datetime import datetime, timedelta, date, timezone
 import pandas as pd
-from inadefChecker import inafiles
-from inadefChecker.inaconf import inaconf
+import inafiles
+from inaconf import inaconf
 import matplotlib.dates as mdates
 from matplotlib import pyplot
 

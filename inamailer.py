@@ -8,8 +8,8 @@ import os
 from envelopes import Envelope
 from imap_tools import MailBox
 
-from inadefChecker import inaimage, inafiles
-from inadefChecker.inaconf import inaconf
+import inaimage, inafiles
+from inaconf import inaconf
 from datetime import datetime
 import pandas as pd
 class inamailer:
@@ -65,7 +65,7 @@ class inamailer:
         number = int(nr)
         maindir = inaconf.maindir
         params = inafiles.getmaildata()
-        locname = inafiles.getclearloc(inaconf.get_camlocations(),number)
+        locname = inafiles.getclearloc(inaconf.get_camlocations(), number)
         return {'login': params['mail'] % (number), 'pwd': params['pwd'] % (number), 'name': 'Inadef Cam %d-%s' % (number, locname[0]),
                 'rec': inafiles.get_cam_receipients(number), 'host': params['host'], 'outhost': params['outhost']}
 
@@ -144,8 +144,8 @@ class inamailer:
         i = int(camnr)
         alerts, cautions, batts, gaps, meteodata = inamailer.alerts[i], inamailer.cautions[i], inamailer.batts[i], inamailer.gaps[i], inamailer.meteodata[i]
         locations = inaconf.get_camlocations()
-        locname = inafiles.getclearloc(locations,i)[0]
-        locnr = int(inafiles.getclearloc(locations,i)[1])
+        locname = inafiles.getclearloc(locations, i)[0]
+        locnr = int(inafiles.getclearloc(locations, i)[1])
 
         attachments = []
         for loc in inamailer.locplots[locnr]:

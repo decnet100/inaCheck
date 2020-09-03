@@ -16,8 +16,8 @@ class inaconf:
 
 
     def preconfig():
-        from inadefChecker import inafiles, inaimage
-        from inadefChecker.inamailer import inamailer
+        import inafiles, inaimage
+        from inamailer import inamailer
         activecams = [[1, 5], ['chdem100@gmail.com', 'chdem100@gmail.com ; cdemmler@gmx.de']]
         datefilefmt = '%Y_%m_%d_%H.%M.%S'
         datelogfmt = '%Y.%m.%d %H.%M.%S'

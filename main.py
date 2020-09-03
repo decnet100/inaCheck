@@ -21,8 +21,8 @@ import numpy as np
 import pytz
 from suntime import Sun
 
-from inadefChecker import inaimage, inafiles, inazentra
-from inadefChecker.inamailer import inamailer
+import inaimage, inafiles, inazentra
+from inamailer import inamailer
 #import inaimage, inafiles, inamailer
 # preconf()
 # for set_cfg set in imageset:
@@ -30,7 +30,7 @@ from inadefChecker.inamailer import inamailer
 #     if set_receive_set(set).renewSuccess = True:
 #         set_analyze(set)
 #         set_log(set)
-from inadefChecker.inaconf import inaconf
+from inaconf import inaconf
 
 
 def get_suntimes(date, latitude=47.26, longitude=11.39):

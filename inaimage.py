@@ -15,7 +15,7 @@ from skimage.feature import blob_doh
 from skimage.metrics import mean_squared_error
 from skimage.metrics import structural_similarity as ssim
 
-from inadefChecker.inaconf import inaconf
+from inaconf import inaconf
 
 matplotlib.rcParams['font.size'] = 8
 
