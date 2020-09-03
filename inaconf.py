@@ -5,12 +5,37 @@ import os
 from datetime import datetime
 
 
+
 class inaconf:
     maindir = ''
     camlocations = []
+    lastn  = 1
 
     def __init__(self, dir):
         inaconf.maindir = dir
+
+
+    def preconfig():
+        from inadefChecker import inafiles, inaimage
+        from inadefChecker.inamailer import inamailer
+        activecams = [[1, 5], ['chdem100@gmail.com', 'chdem100@gmail.com ; cdemmler@gmx.de']]
+        datefilefmt = '%Y_%m_%d_%H.%M.%S'
+        datelogfmt = '%Y.%m.%d %H.%M.%S'
+        dateexiffmt = '%Y:%m:%d %H:%M:%S'
+        inaconf.datehumanfmt ='%Y.%m.%d %H:%M'
+        inaconf.datehumanshortfmt = '%m.%d %H:%M'
+        inaconf.set_datelogfmt(datelogfmt)
+        inaconf.set_datefilefmt(datefilefmt)
+        inaconf.set_dateexiffmt(dateexiffmt)
+        inaconf.set_battcrop([335, 465, 367, 478])
+        inaconf.set_lastn(3)
+        inaconf.battwarning = 0.3
+        inaconf.meteoreportdays = 5
+        mailer = inamailer()
+        # locations = inaconf.get_camlocations()
+        for i in activecams[0]:
+            inafiles.dircreate('cam_%d' % i)
+        inafiles.dirlocationchange()
 
     def main():
         return self.maindir
@@ -30,6 +55,10 @@ class inaconf:
     @staticmethod
     def set_battcrop(crop):
         inaconf.battcrop = crop
+
+    @staticmethod
+    def set_lastn(n):
+        inaconf.lastn = int(n)
 
     @staticmethod
     def get_camlocations():

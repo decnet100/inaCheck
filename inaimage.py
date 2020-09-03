@@ -338,17 +338,19 @@ def blobtest(img, reflectors):
     return missing_ref
 
 
-def dilate(img):
-    image = img_as_float(io.imread(img, as_gray=True))
-    image = gaussian_filter(image, 1)
-    seed = np.copy(image)
-    seed[1:-1, 1:-1] = image.min()
-    mask = image
-
-    dilated = reconstruction(seed, mask, method='dilation')
+def dilate(img, force = False):
     outpath = os.path.splitext(img)[0] + '_dil.jpg'
-    outimg = image - dilated
-    io.imsave(outpath, outimg)
+    if not(os.path.isfile(outpath)) or force:
+        image = img_as_float(io.imread(img, as_gray=True))
+        image = gaussian_filter(image, 1)
+        seed = np.copy(image)
+        seed[1:-1, 1:-1] = image.min()
+        mask = image
+
+        dilated = reconstruction(seed, mask, method='dilation')
+
+        outimg = image - dilated
+        io.imsave(outpath, outimg)
     return outpath
 
 
@@ -443,7 +445,7 @@ def blobdraw(file, num, reflectorblob, outimg=''):
 # plt.tight_layout()
 # plt.show()
 def is_highquality(image, night=True):
-    lowcont = is_lowcontrast(image)
+    lowcont = is_rightcontrast(image)
     if night:
         img = img_as_float(io.imread(image, as_gray=True))
         if exposure.is_low_contrast(img, fraction_threshold=0.35, lower_percentile=20, upper_percentile=99):
@@ -456,7 +458,7 @@ def is_highquality(image, night=True):
         return True
 
 
-def is_lowcontrast(image):
+def is_rightcontrast(image):
     img = img_as_float(io.imread(image, as_gray=True))
     # hist = exposure.histogram(img, nbins=3)
     # if hist[1][0] > 0:

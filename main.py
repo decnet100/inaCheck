@@ -56,27 +56,10 @@ def get_currentreflectors(reflectors, date):
 
 # import datetime
 
-def preconfig():
-    inaconf.set_datelogfmt(datelogfmt)
-    inaconf.set_datefilefmt(datefilefmt)
-    inaconf.set_dateexiffmt(dateexiffmt)
-    inaconf.set_battcrop([335, 465, 367, 478])
-    mailer = inamailer()
-    # locations = inaconf.get_camlocations()
-    for i in activecams[0]:
-        inafiles.dircreate('cam_%d' % i)
-    inafiles.dirlocationchange()
+
 
     # if os.path_exists(os.path.join(maindir, 'cam_%d'%camnumber)):
     #    read =
-
-
-def fetch():
-    preconfig()
-    newmsg = []
-    for i in activecams[0]:
-        newmsg = newmsg + inamailer.getinadefmail(i, inaconf.maindir)
-    return newmsg
 
 
 def blob_contains(ref, check):
@@ -130,137 +113,116 @@ def blob_is_different(ref_set, check_set, threshold=0.5):
 import pandas as pd
 
 
-def get_comparisons(imagefile, nclosest=5):
-    time_day = inafiles.read_timedate_from_filename(imagefile)
-    possible = []
-    for compfile in os.listdir(os.path.dirname(imagefile)):
-        if os.path.splitext(compfile)[1].lower() == '.jpg' and len(os.path.splitext(compfile)[0]) == 19:
-            # if not ('_dil' in compfile or '_ds' in compfile or 'edge' in compfile or 'plot' in compfile):
-
-            val = inafiles.read_timedate_from_filename(compfile)
-            possible.append([compfile, val[0], val[1]])
-    df = pd.DataFrame(possible, columns=['file', 'time', 'day'])
-
-    res = []
-    for comp in df[::-1].iterrows():
-        if len(comp) > 1:
-            if comp[1]['file'] != os.path.basename(imagefile) and abs(time_day[0].hour - comp[1]['time'].hour) < 2:
-                res.append(comp)
-            if (len(res) >= nclosest):
-                break
-
-    return res
 
 
-def blobwatch(cam=0, new=[]):
+
+def blobwatch(cam=0, files=[]):
     blobs = []
+    alerts = []
+    cautions = []
     camdir = os.path.join(maindir, inafiles.get_camdir(cam))
     start = inafiles.checkstart(cam, inaconf.maindir)
 
     reflectors = inafiles.read_reflectorpos(i)
-    if os.path.exists(camdir):
-        for image in os.listdir(camdir):
+    for file in files:
+        image = file['file']
+        valid = False
+        goodqual = False
+        missing_ref = []
+        agreement = True
+        if (inafiles.is_caminputfile(image)):
+            orig = image
+            imgdate = file['date']
+            local_imgdate = pytz.timezone(localtz).localize(imgdate)
 
-            valid = False
-            goodqual = False
-            missing_ref = []
-            agreement = True
-            if (len(os.path.splitext(image)[0]) == 19) and (os.path.splitext(image)[1].lower() == '.jpg'):
-                orig = os.path.join(camdir, image)
-                imgdate = datetime.strptime(os.path.splitext(image)[0], datefilefmt)
-                local_imgdate = pytz.timezone(localtz).localize(imgdate)
+            sr = get_suntimes(imgdate.date())
+            # local_sr = pytz.timezone(localtz).localize(sr['sunrise'])
+            # local_ss =pytz.timezone(localtz).localize(sr['sunset'])
+            # imgdate = imgdate.replace(tzinfo = sr['sunrise'].tzinfo())
 
-                sr = get_suntimes(imgdate.date())
-                # local_sr = pytz.timezone(localtz).localize(sr['sunrise'])
-                # local_ss =pytz.timezone(localtz).localize(sr['sunset'])
-                # imgdate = imgdate.replace(tzinfo = sr['sunrise'].tzinfo())
+            if imgdate > start:
+                current = get_currentreflectors(reflectors, imgdate)
+                print('.............')
+                print('Image date: %s sunrise: %s, sunset: %s' % (local_imgdate.strftime(datelogfmt),
+                                                                  sr['sunrise'].strftime(datelogfmt),
+                                                                  sr['sunset'].strftime(datelogfmt)))
 
-                if imgdate > start:
-                    current = get_currentreflectors(reflectors, imgdate)
-                    print('.............')
-                    print('Image date: %s sunrise: %s, sunset: %s' % (local_imgdate.strftime(datelogfmt),
-                                                                      sr['sunrise'].strftime(datelogfmt),
-                                                                      sr['sunset'].strftime(datelogfmt)))
+                dilimg = inaimage.dilate(image)
 
-                    dilimg = os.path.join(camdir, os.path.splitext(image)[0] + '_dil.jpg')
-                    if not os.path.exists(dilimg):
-                        dilimg = inaimage.dilate(os.path.join(camdir, image))
+                if (local_imgdate > sr['sunrise']) and (local_imgdate < sr['sunset']):
+                    inaconf.logprint(
+                        'Timecheck: assuming daytime image - skipping blob analysis, doing edge comparison on entire image')
+                    col = inaimage.has_color_info(orig, daycrop_win)
+                    valid = True
+                    agreement = True
 
-                    if (local_imgdate > sr['sunrise']) and (local_imgdate < sr['sunset']):
-                        inaconf.logprint(
-                            'Timecheck: assuming daytime image - skipping blob analysis, doing edge comparison on entire image')
-                        col = inaimage.has_color_info(orig, daycrop_win)
-                        valid = True
-                        agreement = True
-                        comparisons = get_comparisons(orig)
-                        results = []
-                        for comp in comparisons:
-                            values = inaimage.daycheck(orig, os.path.join(os.path.dirname(orig), comp[1]['file']))
-                            print(comp[1], values)
-                            results.append(values)
-                        print('fertisch')
-                        valid = (np.median(np.array(results)[:, 0]) > 0.45)
-                        agreement = valid
-                        goodqual = (np.median(np.array(results)[:, 1]) > 0.5)
+                    dayresults = inafiles.daycompare(file)
+
+                    valid = (np.median(np.array(dayresults)[:, 0]) > 0.45)
+                    agreement = valid
+                    goodqual = (np.median(np.array(dayresults)[:, 1]) > 0.5)
+                else:
+                    inaconf.logprint('Timecheck: assuming nighttime image')
+                    if inaimage.is_rightcontrast(dilimg):  # Test of dilated image!
+
+                        goodqual = inaimage.is_highquality(orig, night=True)
+                        print('Image %s is low-contrast image. Performing Blob analysis' % (image))
+                        missing_dil = inaimage.blobtest(dilimg, current)
+                        cannyimg = inaimage.canny(orig)
+                        missing_can = inaimage.blobtest(cannyimg, current)
+                        if len(missing_dil) == 0 or len(missing_can) == 0:
+                            valid = True
+                        if min(len(missing_dil), len(missing_can)) != max(len(missing_dil), len(missing_can)):
+                            agreement = False
+                        missing_ref = missing_dil + missing_can
+                        blobs.append(inaimage.blobdet(dilimg))
+                        #
+                        # for reflector in reflectors:
+                        #     reflector_there = False
+                        #     for blob in blobs[len(blobs)-1][1]:
+                        #         reflector_there = reflector_there or reflector_contains_blob(reflector, blob)
+                        #     if not reflector_there:
+                        #         logprint('########## Blob Analysis: Reflector missing at cam %d, image %s'% (cam, image))
+                        #         missing_ref.append(reflector)
+                        #
+                        #     else:
+                        #         print('Reflector %s found.'%( ','.join(reflector)))
+
                     else:
-                        inaconf.logprint('Timecheck: assuming nighttime image')
-                        if inaimage.is_lowcontrast(dilimg):  # Test of dilated image!
 
-                            goodqual = inaimage.is_highquality(orig, night=True)
-                            print('Image %s is low-contrast image. Performing Blob analysis' % (image))
-                            missing_dil = inaimage.blobtest(dilimg, current)
-                            cannyimg = inaimage.canny(orig)
-                            missing_can = inaimage.blobtest(cannyimg, current)
-                            if len(missing_dil) == 0 or len(missing_can) == 0:
-                                valid = True
-                            if min(len(missing_dil), len(missing_can)) != max(len(missing_dil), len(missing_can)):
-                                agreement = False
-                            missing_ref = missing_dil + missing_can
-                            blobs.append(inaimage.blobdet(dilimg))
-                            #
-                            # for reflector in reflectors:
-                            #     reflector_there = False
-                            #     for blob in blobs[len(blobs)-1][1]:
-                            #         reflector_there = reflector_there or reflector_contains_blob(reflector, blob)
-                            #     if not reflector_there:
-                            #         logprint('########## Blob Analysis: Reflector missing at cam %d, image %s'% (cam, image))
-                            #         missing_ref.append(reflector)
-                            #
-                            #     else:
-                            #         print('Reflector %s found.'%( ','.join(reflector)))
+                        print('high contrast image - skipping blob analysis')
+                inaconf.logprint('camera %d image %s analysed...' % (cam, image))
+                # decision making
+                if True:  # orig in new:
+                    # only concern yourself with new images
+                    if valid and agreement:
+                        print('CLASSIFICATION: True positive.')
+                        # do pretty much nothing. World is in order.
+                    if valid and not agreement:
+                        plotimg = inaimage.blobdraw(dilimg, cam, missing_ref)
+                        #inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
+                        cautions.append([cam, maindir, [orig, plotimg, cannyimg]])
+                        print('CLASSIFICATION: potentially false positive.')
+                        # treat it as spurious. Send Notification
+                    if not valid and goodqual:
+                        # treat as alarm!
+                        print('CLASSIFICATION: True negative.')
+                        plotimg = inaimage.blobdraw(dilimg, cam, missing_ref)
 
-                        else:
-
-                            print('high contrast image - skipping blob analysis')
-                    inaconf.logprint('camera %d image %s analysed...' % (cam, image))
-                    # decision making
-                    if True:  # orig in new:
-                        # only concern yourself with new images
-                        if valid and agreement:
-                            print('CLASSIFICATION: True positive.')
-                            # do pretty much nothing. World is in order.
-                        if valid and not agreement:
-                            plotimg = inaimage.blobdraw(dilimg, cam, missing_ref)
-                            inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
-                            print('CLASSIFICATION: potentially false positive.')
-                            # treat it as spurious. Send Notification
-                        if not valid and goodqual:
-                            # treat as alarm!
-                            print('CLASSIFICATION: True negative.')
-                            plotimg = inaimage.blobdraw(dilimg, cam, missing_ref)
-
-                            inamailer.send_alert(cam, maindir, [orig, plotimg, cannyimg])
-                            # missing_ref = []
-                        if not valid and not goodqual:
-                            print('CLASSIFICATION: potentially false negative.')
-                            cannyimg = inaimage.canny(orig)
-                            inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
-                    else:
-                        print('Image already registered, no action required.')
-                        # treat as spurious. Send Notification
+                        #inamailer.send_alert(cam, maindir, [orig, plotimg, cannyimg])
+                        alerts.append([cam, maindir, [orig, plotimg, cannyimg]])
+                        # missing_ref = []
+                    if not valid and not goodqual:
+                        print('CLASSIFICATION: potentially false negative.')
+                        cannyimg = inaimage.canny(orig)
+                        #inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
+                        cautions.append(cam, maindir, [orig, plotimg, cannyimg])
+                else:
+                    print('Image already registered, no action required.')
+                    # treat as spurious. Send Notification
     inaconf.logprint('########## camera %d blobs analysed' % cam)
     # logprint(blobs)
-    return blobs
+    return alerts, cautions
 
 
 def grow_reflector(center, size):
@@ -283,19 +245,31 @@ nightcrop_win = grow_reflector(reflector_center, 50)
 daycrop_win = grow_reflector(reflector_center, 100)
 # reflectorcrop = [100,0,1200,600]
 # Mail command:
-new = fetch()  # fetches mail, gets an array of all the new files saved to disk
-
-print('%d new images found:' % len(new))
-print(new)
-
 blobs_cam = []
-reflectors_cam = []
-locations = inafiles.getlocations()
-for loc in locations.iterrows():
-    inazentra.getmeteodata(loc[1]['location'])
-# testdir = r'c:\temp\wildkamera'
-for i in activecams[0]:
 
-    reflectors_cam.append([i, inafiles.read_reflectorpos(i)])
-    blobs_cam.append(blobwatch(i, new))
-    inamailer.send_mails(inamailer.alerts, inamailer.cautions, inamailer.batts)
+locations = inafiles.getlocations()
+
+
+inaconf.preconfig()
+new = inamailer.fetch()  # fetches mail, gets an array of all the new files saved to disk
+print('%d new images found:' % len(new))
+#print(new)
+# testdir = r'c:\temp\wildkamera'
+for loc in locations.iterrows():
+    locnr = int(loc[1]['location'])
+    print('location: ', loc)
+    inamailer.locplots[locnr] = inazentra.getmeteodata(locnr)
+    #summary = inazentra.getsummary(loc[1]['location'])
+
+
+for nstr in activecams[0]:
+    i = int(nstr)
+    #reflectors_cam.append([i, inafiles.read_reflectorpos(i)])
+    current = inafiles.getcurrentfiles(i)
+    inamailer.gaps[i] = inafiles.gapcheck(current)
+    inamailer.batts[i] = inamailer.battcheck(current)
+    inamailer.alerts[i], inamailer.cautions[i] = blobwatch(i, current)
+    #blobs_cam.append(newblobs)
+    inamailer.meteodata[i] = inazentra.getmeteoforcam(i)
+    inamailer.send_mails(i)
+

@@ -1,8 +1,8 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pandas import read_csv
-
-
+import pandas as pd
+from inadefChecker import inaimage, inamailer
 from inadefChecker.inaconf import inaconf
 
 
@@ -41,7 +41,78 @@ def getlocations():
 
     locations = readDataframe(locationfile)
     return locations
+def is_caminputfile(file):
+    return (len(os.path.splitext(os.path.basename(file))[0]) == 19 and os.path.splitext(os.path.basename(file))[1].lower() == '.jpg')
 
+def get_comparisons(imagefile, nclosest=5):
+    time_day = inafiles.time_date_from_file(imagefile)
+    possible = []
+    path =os.path.dirname(imagefile)
+    for compfile in os.listdir(path):
+        if os.path.splitext(compfile)[1].lower() == '.jpg' and len(os.path.splitext(compfile)[0]) == 19:
+            # if not ('_dil' in compfile or '_ds' in compfile or 'edge' in compfile or 'plot' in compfile):
+            compfullfile = os.path.join(path, compfile)
+            val = inafiles.time_date_from_file(compfile)
+            possible.append([compfullfile, val[0], val[1]])
+    df = pd.DataFrame(possible, columns=['file', 'time', 'day'])
+
+    res = []
+    for comp in df[::-1].iterrows():
+        if len(comp) > 1:
+            if os.path.basename(comp[1]['file']) != os.path.basename(imagefile) and abs(time_day[0].hour - comp[1]['time'].hour) < 2:
+                res.append(comp)
+            if (len(res) >= nclosest):
+                break
+
+    return res
+
+def daycompare(file):
+    comparisons = get_comparisons(file)
+    for comp in comparisons:
+        values = inaimage.daycheck(file, comp[1]['file'])
+        print(comp[1], values)
+        results.append(values)
+
+
+def getcurrentfiles(camnr):
+    all = []
+    path = get_camdir(int(camnr))
+    if os.path.isdir(path):
+        for file in os.listdir(path):
+            if is_caminputfile(file):
+                filedate = datetime_from_file(file)
+                if filedate <= datetime.now():
+                    all.append({'date': filedate,'file': os.path.join(path,file)})
+    all.sort(key=lambda item:item['date'], reverse=True)
+    n = inaconf.lastn
+    return all[0:n]
+
+def getactivecams():
+    activecams= readlinelistfile(os.path.join(inaconf.maindir, 'activecams.txt'))
+    return activecams
+
+def gapcheck(lastfiles):
+    prevdate = datetime.now()
+    now = prevdate
+    prevfile = ''
+    latestfile = ''
+    latestdate = datetime.min
+    gaps = []
+
+    for file in lastfiles:
+        if prevdate < now:
+            if (max(file['date'],prevdate) - min(file['date'],prevdate)) > timedelta(hours=25):
+                newgap = {**file, 'prevdate': prevdate, 'prevfile': prevfile}
+                gaps.append(newgap)
+        prevdate = file['date']
+        prevfile = file['file']
+        if latestdate < prevdate:
+            latestfile, latestdate = prevfile, prevdate
+    if (now - latestdate) > timedelta(hours=25):
+        newgap = {'date': now, 'file': '', 'prevdate': latestdate, 'prevfile': latestfile}
+        gaps.append(newgap)
+
+    return gaps
 
 
 def getZentraLogin():
@@ -50,12 +121,23 @@ def getZentraLogin():
     #login = read_csv(loginfile, delimiter=';')
     login = readDataframe(loginfile)
     return login
-import pandas as pd
+
+def readlinelistfile(file, delimiter=';'):
+    list = []
+    if os.path.isfile(file):
+        with open(file,'r') as f:
+            lines = f.readlines()
+    for line in lines:
+        line = line.rstrip('\n')
+        list.append(line.split(delimiter))
+    return list
+
 def readDataframe(file, delimiter=';'):
     data = pd.DataFrame()
     if os.path.isfile(file):
         data = read_csv(file, delimiter)
     return data
+
 def getmeteofromlocation(number):
     meteo = []
     meteofile = os.path.join(inaconf.maindir,'meteo_locations.txt')
@@ -115,14 +197,41 @@ def checkstart(camnumber=0, maindir=inaconf.maindir):
         return date
 
 
-def read_timedate_from_filename(file):
-    filedate = datetime.strptime(os.path.splitext(os.path.basename(file))[0], inaconf.datefilefmt)
+def time_date_from_file(file):
+    filedate = datetime_from_file(file)
     time = filedate.time()
     date = filedate.date()
 
     return time, date
 
-def getmaildata(maindir=inaconf.maindir):
+def datetime_from_file(file):
+    filedate = datetime.strptime(os.path.splitext(os.path.basename(file))[0], inaconf.datefilefmt)
+    time = filedate.time()
+    date = filedate.date()
+
+    return filedate
+
+def get_cam_receipients(camnr, default=''):
+    maindir = inaconf.maindir
+    filepath = os.path.join(maindir, 'audience_cam_%d.txt' % (camnr))
+    if os.path.isfile(filepath):
+        with open(filepath, 'r') as f:
+            rec = f.readlines()
+        actual_rec = []
+        for receipient in rec:
+            if len(receipient) != 0 and '@' in receipient and '.' in receipient:
+                actual_rec.append(receipient.rstrip('\n'))
+        if len(actual_rec) > 0:
+            return actual_rec
+        else:
+            return default
+    else:  # file not found
+        with open(filepath, 'w+') as f:
+            f.write(default + '\n')
+        return default
+
+def getmaildata():
+    maindir = inaconf.maindir
     filepath = os.path.join(maindir, 'maildata.txt')
     if os.path.isfile(filepath):
         with open(filepath, 'r') as f:
@@ -130,8 +239,12 @@ def getmaildata(maindir=inaconf.maindir):
     else:
         raise AssertionError
     vals = rec.split(',')
-    return {'host': vals[0].strip(), 'mail': vals[1].strip(), 'pwd': vals[2].strip()}
+    return {'host': vals[0].strip(), 'mail': vals[1].strip(), 'pwd': vals[2].strip(), 'outhost': vals[3].strip()}
 
+def getcammaildata(camnr):
+    i = int(camnr)
+    data = getmaildata()
+    return{'host': data['host'], 'mail': data['mail']%i, 'pwd': data['mail']%i, 'outhost': data['outhost']}
 
 def read_reflectorpos(cam=0):
     defaultreflectors = [[1, 113, 297, 20], [5, 242, 448, 20]]
