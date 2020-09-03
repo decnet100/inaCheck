@@ -10,6 +10,7 @@ class inaconf:
     maindir = ''
     camlocations = []
     lastn  = 1
+    activecame = []
 
     def __init__(self, dir):
         inaconf.maindir = dir
@@ -18,7 +19,7 @@ class inaconf:
     def preconfig():
         import inafiles, inaimage
         from inamailer import inamailer
-        activecams = [[1, 5], ['chdem100@gmail.com', 'chdem100@gmail.com ; cdemmler@gmx.de']]
+        inaconf.activecams = [1, 5]
         datefilefmt = '%Y_%m_%d_%H.%M.%S'
         datelogfmt = '%Y.%m.%d %H.%M.%S'
         dateexiffmt = '%Y:%m:%d %H:%M:%S'
@@ -33,7 +34,7 @@ class inaconf:
         inaconf.meteoreportdays = 5
         mailer = inamailer()
         # locations = inaconf.get_camlocations()
-        for i in activecams[0]:
+        for i in inaconf.activecams:
             inafiles.dircreate('cam_%d' % i)
         inafiles.dirlocationchange()
 

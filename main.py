@@ -229,9 +229,8 @@ def grow_reflector(center, size):
     return [center[0] - size, center[1] - size, center[0] + size, center[1] + size]
 
 
-maindir = r'W:\Demmler\Privat\Inadef\CamFun'
+maindir = r'W:\Demmler\Frei\Inadef\CamFun'
 config = inaconf(maindir)
-activecams = [[1, 5], ['chdem100@gmail.com', 'chdem100@gmail.com ; cdemmler@gmx.de']]
 datefilefmt = '%Y_%m_%d_%H.%M.%S'
 datelogfmt = '%Y.%m.%d %H.%M.%S'
 dateexiffmt = '%Y:%m:%d %H:%M:%S'
@@ -247,7 +246,7 @@ daycrop_win = grow_reflector(reflector_center, 100)
 # Mail command:
 blobs_cam = []
 
-locations = inafiles.getlocations()
+locations = inafiles.readlocations()
 
 
 inaconf.preconfig()
@@ -262,10 +261,11 @@ for loc in locations.iterrows():
     #summary = inazentra.getsummary(loc[1]['location'])
 
 
-for nstr in activecams[0]:
+for nstr in inaconf.activecams:
     i = int(nstr)
     #reflectors_cam.append([i, inafiles.read_reflectorpos(i)])
     current = inafiles.getcurrentfiles(i)
+    inamailer.current[i]= current
     inamailer.gaps[i] = inafiles.gapcheck(current)
     inamailer.batts[i] = inamailer.battcheck(current)
     inamailer.alerts[i], inamailer.cautions[i] = blobwatch(i, current)

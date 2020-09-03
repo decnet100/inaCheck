@@ -21,6 +21,7 @@ class inamailer:
         inamailer.gaps = [None] * 10
         inamailer.meteodata = [None] * 10
         inamailer.locplots = [None] * 10
+        inamailer.current = [None] * 10
         # for i in range(10):
         #     inamailer.cautions[i] = []
         #     inamailer.alerts[i] = []
@@ -140,20 +141,24 @@ class inamailer:
     @staticmethod
     def getmailpayload(number):
         alerts, cautions, batts, gaps = inamailer.alerts[i], inamailer.cautions[i], inamailer.batts[i], inamailer.gaps[i]
+
+
     def send_mails(camnr):
         i = int(camnr)
-        alerts, cautions, batts, gaps, meteodata = inamailer.alerts[i], inamailer.cautions[i], inamailer.batts[i], inamailer.gaps[i], inamailer.meteodata[i]
+        alerts, cautions, batts, gaps, meteodata, current = inamailer.alerts[i], inamailer.cautions[i], inamailer.batts[i], inamailer.gaps[i], inamailer.meteodata[i], inamailer.current[i]
         locations = inaconf.get_camlocations()
         locname = inafiles.getclearloc(locations, i)[0]
         locnr = int(inafiles.getclearloc(locations, i)[1])
-
+        currenttext = 'Current Images (last %d days):\n'%(inaconf.lastn)
+        for cur in current:
+            currenttext = currenttext+'\nFile %s (%s)'%(cur['file'], cur['date'].strftime(inaconf.datehumanfmt))
         attachments = []
         for loc in inamailer.locplots[locnr]:
             attachments.append(loc['plotfile'])
         reportname = 'Inadef report (%s), %s'%(locname, datetime.now().strftime(inaconf.datehumanfmt))
         subjectmode = 'Notification: '
-        alerttext =''
-        gaptext=''
+        alerttext ='\n\nReflector alerts:'
+        gaptext='\nGaps:'
         if len(gaps)>0:
             subjectmode = 'Alert! '
             gaptext = 'Alert: Camera not delivering images at expected frequency (1 image/24h)'
@@ -163,36 +168,36 @@ class inamailer:
             date, time = inafiles.read_timedate_from_filename(alert[1])
             attachments = attachments+alerts[2]
             camstr = inafiles.getclearloc(locations, i)
-            text = 'Alert: Cam %d (%s) - on %s reflector presumably missing!'%(i, camstr[0], camdate.strftime(inaconf.datelogfmt))
+            text = 'Alert: Cam %d (%s) - on %s reflector presumably missing! See attachment.'%(i, camstr[0], camdate.strftime(inaconf.datelogfmt))
             alerttext = alerttext + '\n' + text
             subjectmode = 'Alert! '
-        cautiontext=''
+        cautiontext='\n\nReflector cautions:'
         for caution in cautions:
             date = inafiles.datetime_from_file(caution[2][0])
             attachments = attachments+caution[2]
             camstr = inafiles.getclearloc(locations, i)
-            text = 'caution: Cam %d (%s) - on %s reflector not clearly detected.'%(i, camstr[0], date.strftime(inaconf.datehumanfmt))
+            text = 'caution: Cam %d (%s) - on %s reflector not clearly detected. See attachment.'%(i, camstr[0], date.strftime(inaconf.datehumanfmt))
             cautiontext = cautiontext + '\n' + text
-        meteotext =''
+        meteotext ='\n\nMeteorological station data:'
         if len (meteodata)>0:
             avg = meteodata['total'].mean()
             first = meteodata['start'].min().strftime(inaconf.datehumanfmt)
             last = meteodata['end'].max().strftime(inaconf.datehumanfmt)
 
             devices = ';'.join(meteodata['device'])
-            meteotext = 'Meteorological data (%s): total precipitation - %.1f mm from %s - %s'%(devices, avg, first, last)
+            meteotext = meteotext+'\n%s: total precipitation - %.1f mm from %s - %s'%(devices, avg, first, last)
             for device  in meteodata.iterrows():
                 meteotext = meteotext+'\nBattery level last 24h (%s): %.f percent'%(device[1]['device'], device[1]['batt'])
 
 
-        batttext = ''
+        batttext = '\n\nTrailcam Battery data:'
         if batts[len(batts)-1][0] <= inaconf.battwarning:
             camstr = inafiles.getclearloc(locations, i)
             batttext = 'Battery notification: Level of cam %d (%s) low - last reading below %.f percent'%(i, camstr[0], 100*inaconf.battwarning)
             subjectmode = 'Alert! '
         for j in range(len(batts)):
-            batttext = '\n'.join([batttext, 'Trailcam Battery Level (%s): %.f percent'%(batts[j][1].strftime(inaconf.datehumanfmt), batts[j][0]*100)])
+            batttext = '\n'.join([batttext, 'Level on %s: %.f percent'%(batts[j][1].strftime(inaconf.datehumanfmt), batts[j][0]*100)])
 
-        mailtext = '\n'.join([gaptext, meteotext, alerttext,cautiontext, batttext])
+        mailtext = '\n'.join([currenttext, gaptext, alerttext,cautiontext, batttext, meteotext])
         inamailer.send_inadefmail(camnr=camnr, text=mailtext, rec_name='Inadef mail checker', subject=subjectmode + reportname,
                         attachments=attachments, maindir=inaconf.maindir)

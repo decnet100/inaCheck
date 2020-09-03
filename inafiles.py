@@ -22,6 +22,35 @@ def getclearloc(locations, camnumber): #delivers location data in clear text as 
             break
     return val, locnr
 
+def getlocname(locations, locnr):
+    #locations = readlocations()
+    i = int(locnr)
+    val = ''
+    for loc in locations:
+        if loc[0] == i:
+            val = loc[1].strip()
+            break
+    return val
+
+def getlocname(locnr):
+    locations = readlocations()
+    i = int(locnr)
+    val = ''
+    for loc in locations.iterrows():
+        if loc[1]['location'] == i:
+            val = loc[1]['name'].strip()
+            break
+    return val
+
+
+def getlocationfrommeteo(devicesn):
+    meteo = readmeteo()
+    if len(meteo)> 0:
+        locnr = int(meteo['devicesn'==devicesn]['location'])
+    else:
+        locnr = 0
+    return locnr
+
 def getloc(locations, camnumber): #reformats location data to OS-Path compatible string
     val, locnr = getclearloc(locations,camnumber)
     val = '_' + badcharremove(val.strip())
@@ -36,11 +65,12 @@ def getlocationdata(locations, camnumber):
             break
     return locdata
 
-def getlocations():
+def readlocations():
     locationfile = os.path.join(inaconf.maindir, 'locations.txt')
 
     locations = readDataframe(locationfile)
     return locations
+
 def is_caminputfile(file):
     return (len(os.path.splitext(os.path.basename(file))[0]) == 19 and os.path.splitext(os.path.basename(file))[1].lower() == '.jpg')
 
@@ -140,12 +170,28 @@ def readDataframe(file, delimiter=';'):
 
 def getmeteofromlocation(number):
     meteo = []
-    meteofile = os.path.join(inaconf.maindir,'meteo_locations.txt')
-    data = readDataframe(meteofile)
-    for station in data.iterrows():
-        if int(station[1]['location'])==number:
-            meteo.append(station[1]['device_sn'])
+    data = readmeteo()
+    if not data is None:
+        for station in data.iterrows():
+            if int(station[1]['location'])==number:
+                meteo.append(station[1]['device_sn'])
     return meteo
+
+def readmeteo():
+    meteofile = os.path.join(inaconf.maindir, 'meteo_locations.txt')
+    data = None
+    if os.path.isfile(meteofile):
+        data = readDataframe(meteofile)
+    return data
+
+def getlocationfrommeteo(devicesn):
+    data = readmeteo()
+    loc = []
+    if not data is None:
+        for station in data.iterrows():
+            if station[1]['device_sn'].strip()==devicesn.strip():
+                loc.append(int(station[1]['location']))
+    return loc
 
 
 

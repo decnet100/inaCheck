@@ -49,8 +49,10 @@ def saveplot(data, devicesn, filename):
     start = end - timedelta(days=30)
     lastmonth = (data['datetime'] > start) & (data['datetime'] <= end)
     data = data.loc[lastmonth]
+    locationname = inafiles.getlocname(inafiles.getlocationfrommeteo(devicesn)[0])
+    title ='%s (%s) 24h sum'%(locationname, devicesn)
     grouped = data.groupby(data['datetime'].dt.date)['value'].apply(lambda x: x.sum())
-    grouped.plot(kind='bar', y='value', title='%s 24h sum'%(devicesn))
+    grouped.plot(kind='bar', y='value', title=title)
     pyplot.savefig(filename)
     return filename
     #grouped2 = data.groupby(data['datetime'].dt.to_period('1h'),group_keys=True)['value'].apply(lambda x: x.sum())
