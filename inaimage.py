@@ -16,6 +16,7 @@ from skimage.metrics import mean_squared_error
 from skimage.metrics import structural_similarity as ssim
 
 from inaconf import inaconf
+import inafiles
 
 matplotlib.rcParams['font.size'] = 8
 
@@ -30,6 +31,22 @@ def imgcrop(img, crop=[0, 0, 0, 0]):
 
 from skimage.color import rgb2hsv
 
+
+def battlistcheck(filelist):
+    battlevels = []
+    for file in filelist:
+        filePath = file['file']
+        battlevels.append([battcheck(filePath), inafiles.datetime_from_file(filePath)])
+    return battlevels
+
+def daycompare(file):
+    results=[]
+    comparisons = inafiles.get_comparisons(file)
+    for comp in comparisons:
+        values = daycheck(file, comp[1]['file'])
+        print(comp[1], values)
+        results.append(values)
+    return results
 
 def matchhist(file, reference):
     img_ref = img_as_float(io.imread(reference))

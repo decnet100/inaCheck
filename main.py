@@ -156,11 +156,15 @@ def blobwatch(cam=0, files=[]):
                     valid = True
                     agreement = True
 
-                    dayresults = inafiles.daycompare(file)
-
-                    valid = (np.median(np.array(dayresults)[:, 0]) > 0.45)
-                    agreement = valid
-                    goodqual = (np.median(np.array(dayresults)[:, 1]) > 0.5)
+                    dayresults = inaimage.daycompare(file['file'])
+                    if len(dayresults)>1:
+                        valid = (np.median(np.array(dayresults)[:, 0]) > 0.45)
+                        agreement = valid
+                        goodqual = (np.median(np.array(dayresults)[:, 1]) > 0.5)
+                    else:
+                        valid = True
+                        goodqual = False
+                        print('Just one daylight image present. Cannot determine much with that.')
                 else:
                     inaconf.logprint('Timecheck: assuming nighttime image')
                     if inaimage.is_rightcontrast(dilimg):  # Test of dilated image!
@@ -216,7 +220,7 @@ def blobwatch(cam=0, files=[]):
                         print('CLASSIFICATION: potentially false negative.')
                         cannyimg = inaimage.canny(orig)
                         #inamailer.send_caution(cam, maindir, [orig, plotimg, cannyimg])
-                        cautions.append(cam, maindir, [orig, plotimg, cannyimg])
+                        cautions.append([cam, maindir, [orig,  cannyimg]])
                 else:
                     print('Image already registered, no action required.')
                     # treat as spurious. Send Notification
@@ -259,7 +263,7 @@ for loc in locations.iterrows():
     print('location: ', loc)
     inamailer.locplots[locnr] = inazentra.getmeteodata(locnr)
     #summary = inazentra.getsummary(loc[1]['location'])
-
+inamailer.tlcdata = inafiles.readtlcdata()
 
 for nstr in inaconf.activecams:
     i = int(nstr)
@@ -267,7 +271,7 @@ for nstr in inaconf.activecams:
     current = inafiles.getcurrentfiles(i)
     inamailer.current[i]= current
     inamailer.gaps[i] = inafiles.gapcheck(current)
-    inamailer.batts[i] = inamailer.battcheck(current)
+    inamailer.batts[i] = inaimage.battlistcheck(current)
     inamailer.alerts[i], inamailer.cautions[i] = blobwatch(i, current)
     #blobs_cam.append(newblobs)
     inamailer.meteodata[i] = inazentra.getmeteoforcam(i)

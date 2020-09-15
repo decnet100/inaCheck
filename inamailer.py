@@ -8,13 +8,15 @@ import os
 from envelopes import Envelope
 from imap_tools import MailBox
 
-import inaimage, inafiles
+import inafiles
 from inaconf import inaconf
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 class inamailer:
 
     def __init__(self):
+        #will not have more than 10 locations, cams...
+        #better fix this if this ever evolves into a country-wide setup...
         inamailer.cautions = [None] * 10
         inamailer.alerts = [None] * 10
         inamailer.batts = [None] * 10
@@ -22,6 +24,7 @@ class inamailer:
         inamailer.meteodata = [None] * 10
         inamailer.locplots = [None] * 10
         inamailer.current = [None] * 10
+        inamailer.tlcdata =  None
         # for i in range(10):
         #     inamailer.cautions[i] = []
         #     inamailer.alerts[i] = []
@@ -53,12 +56,7 @@ class inamailer:
                         newmessage.append(filePath)
 
         return newmessage
-    def battcheck(filelist):
-        battlevels = []
-        for file in filelist:
-            filePath = file['file']
-            battlevels.append([inaimage.battcheck(filePath), inafiles.datetime_from_file(filePath)])
-        return battlevels
+
 
     @staticmethod
 
@@ -77,10 +75,13 @@ class inamailer:
         data = inamailer.get_inadefinfo(camnr)
         envelope = Envelope(
             from_addr=(data['login'], data['name']),
-            to_addr=(data['rec']),
+            to_addr=(data['rec'][0]),
             subject=subject,
             text_body=text
         )
+        if len(data['rec'])>1:
+            for other in data['rec'][1:]:
+                envelope.add_to_addr(other)
         for attachment in attachments:
             if attachment != '':
                 if os.path.isfile(attachment):
@@ -124,7 +125,7 @@ class inamailer:
         newmsg = []
         activecams = inafiles.getactivecams()
         for nrstr in activecams:
-            i = int(nrstr[0])
+            i = int(nrstr)
             newmsg = newmsg + inamailer.getinadefmail(int(i), inaconf.maindir)
         return newmsg
 
@@ -188,6 +189,29 @@ class inamailer:
             meteotext = meteotext+'\n%s: total precipitation - %.1f mm from %s - %s'%(devices, avg, first, last)
             for device  in meteodata.iterrows():
                 meteotext = meteotext+'\nBattery level last 24h (%s): %.f percent'%(device[1]['device'], device[1]['batt'])
+        tlctext =''
+        relevanttlc = []
+        if len(inamailer.tlcdata) > 0:
+            tlctext = '\n\nTimelapse Camera data:'
+            relevanttlc = inamailer.tlcdata.loc[inamailer.tlcdata['location']==locnr]
+
+            for rel in relevanttlc.iterrows():
+                tlctext = tlctext + '\nCam "%s" read and refreshed on %s'%(rel[1]['direction'], rel[1]['refreshdate'].strftime(inaconf.datehumanfmt))
+        tlcs = inafiles.readtlc()
+        tlcs = tlcs.loc[tlcs['location']==locnr]
+
+        for tlc in tlcs.iterrows():
+            lastrefresh = datetime(2020,1,1)
+
+            if len(relevanttlc) > 0:
+                relevantentries = relevanttlc.loc[relevanttlc['tlcid']==tlc[1]['tlcid']]
+                if len(relevantentries)>0:
+                    lastrefresh = relevantentries['refreshdate'].max()
+                runningfordays = (datetime.now() - lastrefresh.replace(tzinfo=None)).days
+            else: runningfordays = 1000
+            tlctext = tlctext + '\n\nTLC Running time since last refresh:'
+            tlctext = tlctext + '\nCam "%s - %s": %d days' % (locname, tlc[1]['direction'], runningfordays)
+
 
 
         batttext = '\n\nTrailcam Battery data:'
@@ -198,6 +222,8 @@ class inamailer:
         for j in range(len(batts)):
             batttext = '\n'.join([batttext, 'Level on %s: %.f percent'%(batts[j][1].strftime(inaconf.datehumanfmt), batts[j][0]*100)])
 
-        mailtext = '\n'.join([currenttext, gaptext, alerttext,cautiontext, batttext, meteotext])
+
+
+        mailtext = '\n'.join([currenttext, gaptext, alerttext,cautiontext, batttext, tlctext, meteotext])
         inamailer.send_inadefmail(camnr=camnr, text=mailtext, rec_name='Inadef mail checker', subject=subjectmode + reportname,
                         attachments=attachments, maindir=inaconf.maindir)

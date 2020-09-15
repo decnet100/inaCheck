@@ -2,7 +2,8 @@ import os
 from datetime import datetime, timedelta
 from pandas import read_csv
 import pandas as pd
-import inaimage, inamailer
+import inamailer
+import csv
 from inaconf import inaconf
 
 
@@ -10,7 +11,15 @@ def badcharremove(value):
     deletechars = '\/:*?"<>| '
     for c in deletechars:
         value = value.replace(c, '_')
-    return value;
+    return value
+
+def readtlcdata():
+    file = os.path.join(inaconf.maindir, 'tlc_data.txt')
+    data = readDataframe(file, ',')
+    data['refreshdate'] = pd.to_datetime(data['refreshdate'],utc=True)
+    return data
+
+
 
 def getclearloc(locations, camnumber): #delivers location data in clear text as it appears in location file
     val = ''
@@ -75,14 +84,14 @@ def is_caminputfile(file):
     return (len(os.path.splitext(os.path.basename(file))[0]) == 19 and os.path.splitext(os.path.basename(file))[1].lower() == '.jpg')
 
 def get_comparisons(imagefile, nclosest=5):
-    time_day = inafiles.time_date_from_file(imagefile)
+    time_day = time_date_from_file(imagefile)
     possible = []
     path =os.path.dirname(imagefile)
     for compfile in os.listdir(path):
         if os.path.splitext(compfile)[1].lower() == '.jpg' and len(os.path.splitext(compfile)[0]) == 19:
             # if not ('_dil' in compfile or '_ds' in compfile or 'edge' in compfile or 'plot' in compfile):
             compfullfile = os.path.join(path, compfile)
-            val = inafiles.time_date_from_file(compfile)
+            val = time_date_from_file(compfile)
             possible.append([compfullfile, val[0], val[1]])
     df = pd.DataFrame(possible, columns=['file', 'time', 'day'])
 
@@ -96,12 +105,7 @@ def get_comparisons(imagefile, nclosest=5):
 
     return res
 
-def daycompare(file):
-    comparisons = get_comparisons(file)
-    for comp in comparisons:
-        values = inaimage.daycheck(file, comp[1]['file'])
-        print(comp[1], values)
-        results.append(values)
+
 
 
 def getcurrentfiles(camnr):
@@ -154,6 +158,7 @@ def getZentraLogin():
 
 def readlinelistfile(file, delimiter=';'):
     list = []
+    lines= []
     if os.path.isfile(file):
         with open(file,'r') as f:
             lines = f.readlines()
@@ -167,6 +172,16 @@ def readDataframe(file, delimiter=';'):
     if os.path.isfile(file):
         data = read_csv(file, delimiter)
     return data
+
+def getactivecams():
+    output = []
+    maindir = inaconf.maindir
+    file = os.path.join(maindir, 'activecams.txt')
+    # login = read_csv(loginfile, delimiter=';')
+    data = readlinelistfile(file)
+    for dat in data:
+       output.append(int(dat[0]))
+    return output
 
 def getmeteofromlocation(number):
     meteo = []
@@ -256,6 +271,33 @@ def datetime_from_file(file):
     date = filedate.date()
 
     return filedate
+
+def readtlc():
+    file = os.path.join(inaconf.maindir, 'tlc_locations.txt')
+    data = readDataframe(file,',')
+    return data
+
+def combinetlclocations(tlc=None, locations = None):
+    if tlc == None:
+        tlc = readtlc()
+    if len(tlc)>0:
+        tlc['location']=pd.to_numeric(tlc['location'])
+        tlc['tlcid'] = pd.to_numeric(tlc['tlcid'])
+        tlc.set_index(keys='location')
+    if locations == None:
+        locations = readlocations()
+    if len(locations)>0:
+        locations['location']=pd.to_numeric(locations['location'])
+        locations.set_index(keys='location')
+    combined = pd.merge(tlc,locations,left_on='location',right_on='location')
+    return combined
+
+def savetlc(output):
+    file = os.path.join(inaconf.maindir, 'tlc_data.txt')
+    output.to_csv(file, mode='a', header=False, quoting = csv.QUOTE_NONNUMERIC)
+    return readDataframe(file,',')
+
+
 
 def get_cam_receipients(camnr, default=''):
     maindir = inaconf.maindir

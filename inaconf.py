@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 
 
-
 class inaconf:
     maindir = ''
     camlocations = []
@@ -15,11 +14,10 @@ class inaconf:
     def __init__(self, dir):
         inaconf.maindir = dir
 
-
     def preconfig():
-        import inafiles, inaimage
+        import inafiles
         from inamailer import inamailer
-        inaconf.activecams = [1, 5]
+        inaconf.activecams = inafiles.getactivecams()
         datefilefmt = '%Y_%m_%d_%H.%M.%S'
         datelogfmt = '%Y.%m.%d %H.%M.%S'
         dateexiffmt = '%Y:%m:%d %H:%M:%S'
